@@ -72,7 +72,7 @@ export default defineConfig([
   },
 ])
 
-`Around the U.S. — Aplicación web
+Around the U.S. — Aplicación web
 
 Aplicación web desarrollada como proyecto del Sprint 15 del bootcamp de Desarrollo Web Full Stack de TripleTen. Permite a los usuarios registrarse, iniciar sesión y compartir lugares mediante tarjetas con imágenes.
 
