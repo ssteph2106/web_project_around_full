@@ -1,6 +1,6 @@
 import type { RequestHandler } from 'express';
 import User from '../models/user.js';
-import bcrypt from 'bcryptjs';
+import bcrypt from 'bcrypt';
 import jwt from 'jsonwebtoken';
 
 const getUsers: RequestHandler = async (_req, res) => {
