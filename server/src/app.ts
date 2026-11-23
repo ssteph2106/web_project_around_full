@@ -1,21 +1,56 @@
+import 'dotenv/config';
 import express from 'express';
 import mongoose from 'mongoose';
 import router from './routes/index.js';
 import errorHandler from './middleware/error-handler.js';
 import cors from 'cors';
+import { createUser, login } from './controllers/users.js';
+import auth from './middleware/auth.js';
+import { rateLimit } from 'express-rate-limit';
 
-const app = express();
-const PORT = 3001;
-
-app.use(express.json());
-
-app.use(cors({ origin: "http://localhost:3000" }));
-
-app.use((req, _res, next) => {
-  req.user = { _id: '6ad6ec5c1c96d4b9c6fadf47' };
-  next();
+const signupLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000,
+  limit: 3,
+  standardHeaders: true,
+  legacyHeaders: false,
+  handler: (_req, res) => {
+    res.status(429).json({
+    message: 'Demasiados intentos de registro. Inténtalo más tarde.',  
+    });
+  },
 });
 
+const signinLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  limit: 5,
+  standardHeaders: true,
+  legacyHeaders: false,
+  handler: (_req, res) => {
+    res.status(429).json({
+    message: 'Demasiados intentos de inicio de sesión. Inténtalo más tarde.', 
+    });
+  },
+});
+
+const PORT = Number(process.env.PORT) || 3001;
+const CLIENT_ORIGIN = process.env.CLIENT_ORIGIN || 'http://localhost:3000';
+const MONGODB_URI = process.env.MONGODB_URI;
+
+const app = express();
+
+app.set('trust proxy', 1);
+
+app.use(express.json());
+app.use(cors({ origin: CLIENT_ORIGIN }));
+
+app.get('/health', (_req, res) => {
+  res.status(200).json({ status: 'OK' });
+});
+
+app.post('/signup', signupLimiter, createUser);
+app.post('/signin', signinLimiter, login);
+
+app.use(auth);
 
 app.use('/', router);
 
@@ -30,8 +65,14 @@ app.use((_req, _res, next) => {
 
 app.use(errorHandler);
 
+if (!MONGODB_URI) {
+  throw new Error('MONGODB_URI no está configurado');
+}
+
 mongoose
-  .connect('mongodb://127.0.0.1:27017/aroundb')
+  .connect(MONGODB_URI, {
+    maxPoolSize: 10,
+  })
   .then(() => {
     console.log('Conexión a MongoDB establecida');
 

@@ -9,8 +9,8 @@ client/dist/
 
 # Local env files
 .env
-.env.local
-.env.*.local
+.env.*
+!.env.example
 
 # Editor
 .vscode/

@@ -3,11 +3,21 @@ import mongoose from 'mongoose';
 import Card from '../models/card.js';
 
 const getCards: RequestHandler = async (req, res) => {
-  const cards = await Card.find({});
+  const userId = req.user?._id;
+
+  if (!userId) {
+    throw Object.assign(new Error('Usuario no autorizado'), {
+      statusCode: 401,
+    });
+  }
+
+  const cards = await Card.find({
+    owner: new mongoose.Types.ObjectId(userId),
+  }).sort({ createdAt: -1 });
 
   const cardsWithIsLiked = cards.map((card) => {
     const isLiked = card.likes.some(
-      (userId) => userId.toString() === req.user?._id,
+      (likedUserId) => likedUserId.toString() === userId,
     );
 
     return {
@@ -49,6 +59,7 @@ const createCard: RequestHandler = async (req, res) => {
 
 const deleteCard: RequestHandler = async (req, res) => {
   const { id } = req.params;
+  const userId = req.user?._id;
 
   if (!mongoose.isValidObjectId(id)) {
     throw Object.assign(new Error('El ID de la tarjeta no es válido'), {
@@ -56,23 +67,42 @@ const deleteCard: RequestHandler = async (req, res) => {
     });
   }
 
-  const card = await Card.findByIdAndDelete(id);
+  const card = await Card.findById(id);
 
   if (!card) {
     throw Object.assign(new Error('Tarjeta no encontrada'), {
       statusCode: 404,
     });
   }
+
+  if (card.owner.toString() !== userId) {
+    throw Object.assign(new Error('No tienes permiso para eliminar esta tarjeta'), {
+      statusCode: 403,
+    });
+  }
+
+  await card.deleteOne();
 
   res.json(card);
 };
 
 const likeCard: RequestHandler = async (req, res) => {
-  const card = await Card.findByIdAndUpdate(
-    req.params.id,
-    { $addToSet: { likes: req.user?._id } },
-    { new: true, runValidators: true },
-  );
+  const { id } = req.params;
+  const userId = req.user?._id;
+
+  if (!mongoose.isValidObjectId(id)) {
+    throw Object.assign(new Error('El ID de la tarjeta no es válido'), {
+      statusCode: 400,
+    });
+  }
+
+  if (!userId) {
+    throw Object.assign(new Error('Usuario no autorizado'), {
+      statusCode: 401,
+    });
+  }
+
+  const card = await Card.findById(id);
 
   if (!card) {
     throw Object.assign(new Error('Tarjeta no encontrada'), {
@@ -80,8 +110,24 @@ const likeCard: RequestHandler = async (req, res) => {
     });
   }
 
+  if (card.owner.toString() !== userId) {
+    throw Object.assign(new Error('No tienes permiso para modificar esta tarjeta'), {
+      statusCode: 403,
+    });
+  }
+
+const alreadyLiked = card.likes.some(
+  (likedUserId) => likedUserId.toString() === userId,
+);
+
+if (!alreadyLiked) {
+  card.likes.push(new mongoose.Types.ObjectId(userId));
+}
+
+  await card.save();
+
   const isLiked = card.likes.some(
-    (userId) => userId.toString() === req.user?._id,
+    (likedUserId) => likedUserId.toString() === userId,
   );
 
   res.json({
@@ -91,11 +137,22 @@ const likeCard: RequestHandler = async (req, res) => {
 };
 
 const unlikeCard: RequestHandler = async (req, res) => {
-  const card = await Card.findByIdAndUpdate(
-    req.params.id,
-    { $pull: { likes: req.user?._id } },
-    { new: true, runValidators: true },
-  );
+  const { id } = req.params;
+  const userId = req.user?._id;
+
+  if (!mongoose.isValidObjectId(id)) {
+    throw Object.assign(new Error('El ID de la tarjeta no es válido'), {
+      statusCode: 400,
+    });
+  }
+
+  if (!userId) {
+    throw Object.assign(new Error('Usuario no autorizado'), {
+      statusCode: 401,
+    });
+  }
+
+  const card = await Card.findById(id);
 
   if (!card) {
     throw Object.assign(new Error('Tarjeta no encontrada'), {
@@ -103,8 +160,20 @@ const unlikeCard: RequestHandler = async (req, res) => {
     });
   }
 
+  if (card.owner.toString() !== userId) {
+    throw Object.assign(new Error('No tienes permiso para modificar esta tarjeta'), {
+      statusCode: 403,
+    });
+  }
+
+  card.likes = card.likes.filter(
+  (likedUserId) => likedUserId.toString() !== userId,
+  );
+
+  await card.save();
+
   const isLiked = card.likes.some(
-    (userId) => userId.toString() === req.user?._id,
+    (likedUserId) => likedUserId.toString() === userId,
   );
 
   res.json({
