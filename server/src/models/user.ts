@@ -8,7 +8,7 @@ const userSchema = new mongoose.Schema({
         type: String,
         required: true,
         minlength: 2,
-        maxlength: 30,
+        maxlength: 40,
         default: "Jacques Cousteau",
         
     },
@@ -16,7 +16,7 @@ const userSchema = new mongoose.Schema({
         type: String,
         required: true,
         minlength: 2,
-        maxlength: 30,
+        maxlength: 200,
         default: "Explorador",
     },
     avatar: {

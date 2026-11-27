@@ -29,11 +29,6 @@ const [currentUser, setCurrentUser] = useState<UserData | null>(null);
 const [cards, setCards] = useState<CardData[]>([]);
 const [modalData, setModalData] = useState<ModalData | null>(null);
 
-const [authUser, setAuthUser] = useState<{
-  _id: string;
-  email: string;
-} | null>(null);
-
 const [isAuthLoading, setIsAuthLoading] = useState(true);
 
 const navigate = useNavigate();
@@ -52,7 +47,7 @@ useEffect(() => {
   }
   getAuthUser(token)
   .then((user) => {
-    setAuthUser(user);
+    setCurrentUser(user);
   })
   .catch((error) => {
     console.error('Error al restauras la sesión', error);
@@ -64,19 +59,17 @@ useEffect(() => {
 }, []);
 
 useEffect(() => {
-  if (!authUser) {
-    setCurrentUser(null);
+  if (!currentUser?._id) {
     setCards([]);
     return;
   }
 
-  Promise.all([api.getUserInfo(), api.getInitialCards()])
-    .then(([userInfo, initialCards]) => {
-      setCurrentUser(userInfo);
+  api.getInitialCards()
+    .then((initialCards) => {
       setCards(initialCards);
     })
     .catch(console.error);
-}, [authUser]);
+}, [currentUser?._id]);
 
 
 async function handleLogin(email: string, password: string) {
@@ -87,8 +80,9 @@ async function handleLogin(email: string, password: string) {
     localStorage.setItem('jwt', token);
 
     const user = await getAuthUser(token);
-    setAuthUser(user);
+    setCurrentUser(user);
     navigate('/');
+
   } catch (error) {
     localStorage.removeItem('jwt');
 
@@ -125,7 +119,6 @@ async function handleRegister(email: string, password: string) {
 
 function handleLogout() {
   localStorage.removeItem('jwt');
-  setAuthUser(null);
   setCurrentUser(null);
   setCards([]);
   setAuthMessage(null);
@@ -165,12 +158,19 @@ const removeCard = cards.filter((c) => {
 };
 
 async function handleUpdateUser(data: { name: string; about: string }) {
+  setAuthMessage(null);
+
   try {
     const updatedUser = await api.editUserInfo(data);
     setCurrentUser(updatedUser);
     setModalData(null);
   } catch (error) {
-    console.error(error);
+    setAuthMessage({
+      type: 'error',
+      text: error instanceof Error
+        ? error.message
+        : 'No se pudo actualizar la información del usuario.',
+    });
   }
 };
 
@@ -206,7 +206,7 @@ return (
 
  <div className="page__content">
       <Header
-  email={authUser?.email ?? null}
+  email={currentUser?.email ?? null}
   onLogout={handleLogout}
 />
 
@@ -214,7 +214,7 @@ return (
         <Route
           path="/signin"
           element={
-            authUser ? (
+            currentUser ? (
               <Navigate to="/" replace />
             ) : (
               <Login
@@ -227,7 +227,7 @@ return (
         <Route
           path="/signup"
           element={
-            authUser ? (
+            currentUser ? (
               <Navigate to="/" replace />
             ) : (
               <Register
@@ -241,7 +241,7 @@ return (
           path="/"
           element={
             <ProtectedRoute
-              isLoggedIn={Boolean(authUser)}
+              isLoggedIn={Boolean(currentUser)}
               isLoading={isAuthLoading}
             >
               <Main
@@ -260,7 +260,7 @@ return (
           path="*"
           element={
             <Navigate
-              to={authUser ? "/" : "/signin"}
+              to={currentUser ? "/" : "/signin"}
               replace
             />
           }

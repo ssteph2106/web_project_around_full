@@ -1,3 +1,5 @@
+import type { UserData } from '../interfaces/UserData';
+
 const AUTH_BASE_URL = import.meta.env.VITE_API_URL;
 
 interface AuthUser {
@@ -64,7 +66,7 @@ export async function login(
   });
 }
 
-export async function getAuthUser(token: string): Promise<AuthUser> {
+export async function getAuthUser(token: string): Promise<UserData> {
   const response = await fetch(`${AUTH_BASE_URL}/users/me`, {
     method: 'GET',
     headers: {
@@ -72,8 +74,9 @@ export async function getAuthUser(token: string): Promise<AuthUser> {
     },
   });
 
-  return checkResponse<AuthUser>(response, {
+  return checkResponse<UserData>(response, {
     401: 'Tu sesión ha caducado. Inicia sesión nuevamente.',
   });
 }
+
 
